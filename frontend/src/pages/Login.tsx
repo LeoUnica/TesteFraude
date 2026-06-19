@@ -1,0 +1,111 @@
+import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
+
+export default function Login() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [form, setForm] = useState({ username: '', password: '' })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await login(form.username, form.password)
+      navigate('/')
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao realizar login')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg">P</div>
+          <h1 className="text-3xl font-bold text-white mb-1">Unica Promotora</h1>
+          <p className="text-slate-400 text-sm">Sistema de Gestão de Promotora de Crédito</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Acesso ao Sistema</h2>
+            <p className="text-sm text-gray-500 mt-1">Insira suas credenciais para continuar</p>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
+              <span className="text-red-500 mt-0.5">⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Usuário ou E-mail</label>
+              <input
+                type="text"
+                value={form.username}
+                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                className="input-field"
+                placeholder="Digite seu usuário ou e-mail"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Senha</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  className="input-field pr-10"
+                  placeholder="Digite sua senha"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  Autenticando...
+                </>
+              ) : 'Entrar'}
+            </button>
+          </form>
+
+          <div className="mt-6 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-xs text-slate-500 font-medium mb-1">Credenciais padrão:</p>
+            <p className="text-xs text-slate-600">Usuário: <code className="font-mono bg-slate-200 px-1 rounded">admin</code></p>
+            <p className="text-xs text-slate-600">Senha: <code className="font-mono bg-slate-200 px-1 rounded">Admin@123</code></p>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-slate-500 mt-6">
+          © 2024 Unica Promotora · Todos os direitos reservados
+        </p>
+      </div>
+    </div>
+  )
+}

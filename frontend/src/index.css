@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-red-900 hover:bg-red-800 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2 text-sm;
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors duration-150 flex items-center gap-2 text-sm dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600;
+  }
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2 text-sm;
+  }
+  .btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2 text-sm;
+  }
+  .input-field {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-800 focus:border-transparent bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400;
+  }
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6;
+  }
+  .table-header {
+    @apply bg-gray-50 dark:bg-gray-700 text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider px-4 py-3;
+  }
+  .table-cell {
+    @apply px-4 py-3 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700;
+  }
+  .badge-success { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400; }
+  .badge-danger  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400; }
+  .badge-warning { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400; }
+  .badge-info    { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400; }
+  .badge-gray    { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300; }
+  .badge-purple  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400; }
+}
+
+/* ─── Modo Noite: aplica em todo conteúdo principal (main) ──────────────────
+   O menu lateral (sidebar) NÃO é afetado pois fica fora de <main>.
+   Isso cobre todas as páginas automaticamente sem editar cada uma. ────── */
+
+/* Fundos */
+.dark main .bg-white          { background-color: #1f2937; }
+.dark main .bg-gray-50        { background-color: #111827; }
+
+/* Bordas */
+.dark main .border-gray-200,
+.dark main .border-gray-100   { border-color: #374151; }
+.dark main .divide-gray-200 > * + * { border-color: #374151; }
+
+/* Textos — claro no modo noite, escuro no modo dia */
+.dark main .text-gray-900,
+.dark main .text-slate-900    { color: #f9fafb; }
+
+.dark main .text-gray-800,
+.dark main .text-slate-800    { color: #f3f4f6; }
+
+.dark main .text-gray-700,
+.dark main .text-slate-700    { color: #e5e7eb; }
+
+.dark main .text-gray-600,
+.dark main .text-slate-600    { color: #d1d5db; }
+
+.dark main .text-gray-500,
+.dark main .text-slate-500    { color: #9ca3af; }
+
+/* Header também precisa dos textos claros */
+.dark header .text-gray-900   { color: #f9fafb; }
+.dark header .text-gray-800   { color: #f3f4f6; }
+.dark header .text-gray-700   { color: #e5e7eb; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+.dark ::-webkit-scrollbar-track { background: #1f2937; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: #4b5563; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #6b7280; }

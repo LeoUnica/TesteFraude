@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"Frontend: HTTP %{http_code}\\\\n\" http://127.0.0.1:4500/)",
+      "Bash(curl -s -w \"Login: HTTP %{http_code}\\\\n\" -o /dev/null http://127.0.0.1:4500/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"Admin@123\"}')",
+      "PowerShell(Receive-Job -Id 1 2>&1)",
+      "PowerShell(netstat -an)",
+      "PowerShell(Stop-Process -Force)"
+    ]
+  }
+}
