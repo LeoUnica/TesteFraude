@@ -46,7 +46,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Usuário ou E-mail</label>
               <input
@@ -56,6 +56,7 @@ export default function Login() {
                 className="input-field"
                 placeholder="Digite seu usuário ou e-mail"
                 required
+                autoComplete="off"
                 autoFocus
               />
             </div>
@@ -70,6 +71,7 @@ export default function Login() {
                   className="input-field pr-10"
                   placeholder="Digite sua senha"
                   required
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -95,11 +97,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 p-3 bg-slate-50 rounded-lg border border-slate-200">
-            <p className="text-xs text-slate-500 font-medium mb-1">Credenciais padrão:</p>
-            <p className="text-xs text-slate-600">Usuário: <code className="font-mono bg-slate-200 px-1 rounded">admin</code></p>
-            <p className="text-xs text-slate-600">Senha: <code className="font-mono bg-slate-200 px-1 rounded">Admin@123</code></p>
-          </div>
         </div>
 
         <p className="text-center text-xs text-slate-500 mt-6">
