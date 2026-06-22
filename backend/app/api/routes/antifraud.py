@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...models.antifraud import AntifraudRule, AntifraudAnalysis
 from ...models.proposal import Proposal
+from ...models.bank import Bank
 from ...core.audit import audit_log
 from ...api.deps import get_current_user
 from ...models.user import User
@@ -234,6 +235,44 @@ async def delete_rule(
     return {"message": "Regra excluída com sucesso"}
 
 
+def _build_proposal_dict(p: Proposal, banks: dict, last_analyses: dict) -> dict:
+    last_a = last_analyses.get(p.id)
+    return {
+        "id": p.id,
+        "code": p.code,
+        "cpf": p.cpf,
+        "client_name": p.client_name,
+        "bank_id": p.bank_id,
+        "bank_name": banks.get(p.bank_id, "") if p.bank_id else "",
+        "broker_id": p.broker_id,
+        "convenio_id": p.convenio_id,
+        "value": p.value,
+        "status": p.status,
+        "antifraud_status": p.antifraud_status,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "last_notes": last_a.notes if last_a else "",
+    }
+
+
+def _bulk_lookups(proposals: list, db: Session) -> tuple[dict, dict]:
+    bank_ids = {p.bank_id for p in proposals if p.bank_id}
+    banks = {b.id: b.name for b in db.query(Bank).filter(Bank.id.in_(bank_ids)).all()} if bank_ids else {}
+
+    proposal_ids = [p.id for p in proposals]
+    last_analyses: dict = {}
+    if proposal_ids:
+        rows = (
+            db.query(AntifraudAnalysis)
+            .filter(AntifraudAnalysis.proposal_id.in_(proposal_ids))
+            .order_by(AntifraudAnalysis.created_at.desc())
+            .all()
+        )
+        for a in rows:
+            if a.proposal_id not in last_analyses:
+                last_analyses[a.proposal_id] = a
+    return banks, last_analyses
+
+
 # Queue and analyses endpoints
 @router.get("/queue")
 async def get_antifraud_queue(
@@ -242,44 +281,45 @@ async def get_antifraud_queue(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ):
-    from ...models.proposal import Proposal as ProposalModel
-    query = db.query(ProposalModel).filter(
-        ProposalModel.antifraud_status.in_(ANTIFRAUD_QUEUE_STATUSES)
-    )
+    query = db.query(Proposal).filter(Proposal.antifraud_status.in_(ANTIFRAUD_QUEUE_STATUSES))
     total = query.count()
     proposals = (
-        query.order_by(ProposalModel.created_at.desc())
+        query.order_by(Proposal.created_at.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
     )
-
-    def p_to_dict(p):
-        try:
-            docs = json.loads(p.documents or "[]")
-        except Exception:
-            docs = []
-        try:
-            hist = json.loads(p.history or "[]")
-        except Exception:
-            hist = []
-        return {
-            "id": p.id,
-            "code": p.code,
-            "cpf": p.cpf,
-            "client_name": p.client_name,
-            "broker_id": p.broker_id,
-            "convenio_id": p.convenio_id,
-            "bank_id": p.bank_id,
-            "product_id": p.product_id,
-            "value": p.value,
-            "status": p.status,
-            "antifraud_status": p.antifraud_status,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-        }
-
+    banks, last_analyses = _bulk_lookups(proposals, db)
     return {
-        "data": [p_to_dict(p) for p in proposals],
+        "data": [_build_proposal_dict(p, banks, last_analyses) for p in proposals],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": (total + per_page - 1) // per_page,
+    }
+
+
+@router.get("/proposals")
+async def list_proposals_by_antifraud_status(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    antifraud_status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(200, ge=1, le=1000),
+):
+    query = db.query(Proposal)
+    if antifraud_status:
+        query = query.filter(Proposal.antifraud_status == antifraud_status)
+    total = query.count()
+    proposals = (
+        query.order_by(Proposal.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    banks, last_analyses = _bulk_lookups(proposals, db)
+    return {
+        "data": [_build_proposal_dict(p, banks, last_analyses) for p in proposals],
         "total": total,
         "page": page,
         "per_page": per_page,
