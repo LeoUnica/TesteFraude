@@ -394,3 +394,60 @@ async def create_analysis(
     )
 
     return analysis_to_dict(analysis)
+
+
+VALID_ANTIFRAUD_STATUSES = {
+    "Em Analise", "Aprovada no Banco", "Nao Mapeada",
+    "Reprovar no Banco", "Suspeita de Antifraude",
+    "Agendar para acompanhamento", "Nao Analisado",
+}
+
+
+class ImportPayload(BaseModel):
+    rows: list[dict]
+
+
+@router.post("/proposals/import")
+async def import_proposals(
+    body: ImportPayload,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    updated = 0
+    not_found = 0
+    skipped = 0
+
+    for row in body.rows:
+        code = str(row.get("COD_OPERACAO") or "").strip()
+        if not code:
+            skipped += 1
+            continue
+
+        proposal = db.query(Proposal).filter(Proposal.code == code).first()
+        if not proposal:
+            not_found += 1
+            continue
+
+        nome_regra = str(row.get("NOME_REGRA") or "").strip()
+        ultimo_obs = str(row.get("ULTIMO_OBS") or "").strip()
+
+        if nome_regra in VALID_ANTIFRAUD_STATUSES:
+            proposal.antifraud_status = nome_regra
+
+        if ultimo_obs:
+            analysis = AntifraudAnalysis(
+                id=str(uuid.uuid4()),
+                proposal_id=proposal.id,
+                analyst_id=current_user.id,
+                status=proposal.antifraud_status or "Em Analise",
+                notes=ultimo_obs,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(analysis)
+
+        proposal.updated_at = datetime.utcnow()
+        updated += 1
+
+    db.commit()
+    return {"updated": updated, "not_found": not_found, "skipped": skipped}

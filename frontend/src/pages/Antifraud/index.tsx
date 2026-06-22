@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import * as XLSX from 'xlsx'
 import api from '../../services/api'
 import Modal from '../../components/ui/Modal'
 import { statusBadge } from '../../components/ui/Badge'
@@ -22,29 +23,43 @@ const CARDS = [
   { key: 'agendar_acompanhamento', label: 'Agendar para Acompanhamento', icon: '📅', color: 'bg-sky-50 dark:bg-sky-900/20', status: 'Agendar para acompanhamento', countKey: 'scheduled', valueKey: 'scheduledValue', subtitle: 'Agendado' },
 ]
 
-function exportToExcel(rows: any[], filename: string) {
-  const headers = ['Banco', 'COD_OPERACAO', 'CPF/CNPJ', 'VALOR', 'NOME_REGRA', 'DATA', 'ULTIMO_OBS']
-  const csvRows = rows.map(p => [
+const EXPORT_HEADERS = ['Banco', 'COD_OPERACAO', 'CPF/CNPJ', 'VALOR', 'NOME_REGRA', 'DATA', 'ULTIMO_OBS']
+
+function rowsToExcel(rows: any[]): any[][] {
+  return rows.map(p => [
     p.bank_name || '',
     p.code || '',
     p.cpf || '',
-    p.value != null ? String(p.value).replace('.', ',') : '0',
+    p.value != null ? p.value : '',
     p.antifraud_status || '',
     p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '',
     p.last_notes || '',
   ])
-  const content = [headers, ...csvRows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
-    .join('\r\n')
-  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+}
+
+function exportToExcel(rows: any[], filename: string) {
+  const data = [EXPORT_HEADERS, ...rowsToExcel(rows)]
+  const ws = XLSX.utils.aoa_to_sheet(data)
+  ws['!cols'] = [20, 18, 16, 14, 28, 12, 40].map(w => ({ wch: w }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Dados')
+  XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : filename + '.xlsx')
+}
+
+function parseExcelFile(file: File): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target!.result as ArrayBuffer)
+        const wb = XLSX.read(data, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        resolve(XLSX.utils.sheet_to_json(ws, { defval: '' }) as any[])
+      } catch (err) { reject(err) }
+    }
+    reader.onerror = reject
+    reader.readAsArrayBuffer(file)
+  })
 }
 
 function ProposalTable({
@@ -75,29 +90,27 @@ function ProposalTable({
         {proposals.length === 0 ? (
           <tr>
             <td colSpan={onAnalyze ? 9 : 8} className="text-center py-12">
-              <div className="text-4xl mb-2">✅</div>
+              <div className="text-4xl mb-2">📋</div>
               <div className="text-gray-500">{emptyMessage}</div>
             </td>
           </tr>
-        ) : proposals.map((p: any) => (
-          <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+        ) : proposals.map((p: any, i: number) => (
+          <tr key={p.id || i} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             <td className="table-cell text-gray-600 dark:text-gray-400">{p.bank_name || '—'}</td>
-            <td className="table-cell font-mono text-xs text-blue-700 dark:text-blue-400">{p.code}</td>
-            <td className="table-cell font-mono text-xs">{p.cpf}</td>
-            <td className="table-cell">
-              <div className="font-medium">{p.client_name}</div>
-            </td>
+            <td className="table-cell font-mono text-xs text-blue-700 dark:text-blue-400">{p.code || p.COD_OPERACAO || '—'}</td>
+            <td className="table-cell font-mono text-xs">{p.cpf || p['CPF/CNPJ'] || '—'}</td>
+            <td className="table-cell"><div className="font-medium">{p.client_name || '—'}</div></td>
             <td className="table-cell text-right font-medium">
               {p.value != null
                 ? p.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                : '—'}
+                : p.VALOR || '—'}
             </td>
-            <td className="table-cell text-center">{statusBadge(p.antifraud_status || 'Nao Analisado')}</td>
+            <td className="table-cell text-center">{statusBadge(p.antifraud_status || p.NOME_REGRA || 'Nao Analisado')}</td>
             <td className="table-cell text-xs text-gray-400">
-              {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—'}
+              {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : p.DATA || '—'}
             </td>
-            <td className="table-cell text-xs text-gray-500 max-w-[200px] truncate" title={p.last_notes || ''}>
-              {p.last_notes || '—'}
+            <td className="table-cell text-xs text-gray-500 max-w-[200px] truncate" title={p.last_notes || p.ULTIMO_OBS || ''}>
+              {p.last_notes || p.ULTIMO_OBS || '—'}
             </td>
             {onAnalyze && (
               <td className="table-cell text-center">
@@ -111,10 +124,64 @@ function ProposalTable({
   )
 }
 
+function TableHeader({
+  title,
+  count,
+  icon,
+  onExport,
+  onImport,
+  onClose,
+  colorClass = 'bg-amber-50 dark:bg-amber-900/20',
+  textClass = 'text-amber-800 dark:text-amber-400',
+}: {
+  title: string
+  count: number
+  icon?: string
+  onExport: () => void
+  onImport?: () => void
+  onClose?: () => void
+  colorClass?: string
+  textClass?: string
+}) {
+  return (
+    <div className={`px-4 py-3 border-b border-gray-200 dark:border-gray-700 ${colorClass} flex items-center justify-between gap-2`}>
+      <div className="flex items-center gap-2 min-w-0">
+        {icon && <span className="text-lg flex-shrink-0">{icon}</span>}
+        <span className={`text-sm font-semibold ${textClass} truncate`}>{title}</span>
+        <span className={`text-xs ${textClass} opacity-70 flex-shrink-0`}>— {count} proposta(s)</span>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {onImport && (
+          <button
+            onClick={onImport}
+            className="btn-secondary py-1.5 text-xs flex items-center gap-1"
+          >
+            📤 Importar Excel
+          </button>
+        )}
+        <button
+          onClick={onExport}
+          className="btn-secondary py-1.5 text-xs flex items-center gap-1"
+        >
+          📥 Exportar Excel
+        </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AntifraudPage() {
   const [proposals, setProposals] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState(1)
+  const [page] = useState(1)
   const [modal, setModal] = useState<'analysis' | null>(null)
   const [selected, setSelected] = useState<any>(null)
   const [analysisForm, setAnalysisForm] = useState({ status: '', notes: '', schedule_date: '' })
@@ -125,6 +192,16 @@ export default function AntifraudPage() {
   const [selectedCard, setSelectedCard] = useState<typeof CARDS[0] | null>(null)
   const [cardProposals, setCardProposals] = useState<any[]>([])
   const [cardLoading, setCardLoading] = useState(false)
+
+  // Import state
+  const [importTarget, setImportTarget] = useState<'queue' | 'card' | null>(null)
+  const [importPreview, setImportPreview] = useState<any[]>([])
+  const [importParsing, setImportParsing] = useState(false)
+  const [importSending, setImportSending] = useState(false)
+  const [importResult, setImportResult] = useState<{ updated: number; not_found: number; skipped: number } | null>(null)
+  const [importError, setImportError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
     setLoading(true)
@@ -181,6 +258,54 @@ export default function AntifraudPage() {
 
   const quickAction = (status: string) => setAnalysisForm((f) => ({ ...f, status }))
 
+  // Import helpers
+  const openImport = (target: 'queue' | 'card') => {
+    setImportTarget(target)
+    setImportPreview([])
+    setImportResult(null)
+    setImportError('')
+    setImportParsing(false)
+    setImportSending(false)
+  }
+
+  const closeImport = () => setImportTarget(null)
+
+  const handleFile = async (file: File) => {
+    if (!file) return
+    setImportParsing(true)
+    setImportError('')
+    setImportResult(null)
+    try {
+      const rows = await parseExcelFile(file)
+      setImportPreview(rows)
+    } catch {
+      setImportError('Erro ao ler o arquivo. Certifique-se que é um .xlsx ou .csv válido.')
+    } finally { setImportParsing(false) }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  const handleConfirmImport = async () => {
+    if (importPreview.length === 0) return
+    setImportSending(true)
+    setImportError('')
+    try {
+      const res = await api.post('/antifraud/proposals/import', { rows: importPreview })
+      setImportResult(res.data)
+      load(); loadStats()
+      if (selectedCard) loadCardProposals(selectedCard.status)
+    } catch (e: any) {
+      setImportError(e.response?.data?.detail || 'Erro ao importar.')
+    } finally { setImportSending(false) }
+  }
+
+  const importModalOpen = importTarget !== null
+
   return (
     <div className="space-y-4">
       <div>
@@ -212,37 +337,19 @@ export default function AntifraudPage() {
         ))}
       </div>
 
-      {/* Tabela filtrada pelo card clicado */}
+      {/* Tabela do card selecionado */}
       {selectedCard && (
         <div className="card p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{selectedCard.icon}</span>
-              <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">
-                {selectedCard.label}
-              </span>
-              {!cardLoading && (
-                <span className="text-xs text-blue-600 dark:text-blue-400">
-                  — {cardProposals.length} proposta(s)
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => exportToExcel(cardProposals, `${selectedCard.label}.csv`)}
-                disabled={cardLoading || cardProposals.length === 0}
-                className="btn-secondary py-1.5 text-xs flex items-center gap-1.5 disabled:opacity-50"
-              >
-                📥 Exportar Excel
-              </button>
-              <button
-                onClick={() => { setSelectedCard(null); setCardProposals([]) }}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+          <TableHeader
+            title={selectedCard.label}
+            count={cardProposals.length}
+            icon={selectedCard.icon}
+            colorClass="bg-blue-50 dark:bg-blue-900/20"
+            textClass="text-blue-900 dark:text-blue-300"
+            onExport={() => exportToExcel(cardProposals, selectedCard.label)}
+            onImport={() => openImport('card')}
+            onClose={() => { setSelectedCard(null); setCardProposals([]) }}
+          />
           <div className="overflow-x-auto">
             {cardLoading ? (
               <div className="flex items-center justify-center h-32">
@@ -257,21 +364,13 @@ export default function AntifraudPage() {
 
       {/* Fila de análise */}
       <div className="card p-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-600 font-bold">⚠</span>
-            <span className="text-sm font-medium text-amber-800 dark:text-amber-400">
-              Fila de análise — {proposals.length} proposta(s) aguardando revisão
-            </span>
-          </div>
-          <button
-            onClick={() => exportToExcel(proposals, 'fila_analise.csv')}
-            disabled={proposals.length === 0}
-            className="btn-secondary py-1.5 text-xs flex items-center gap-1.5 disabled:opacity-50"
-          >
-            📥 Exportar Excel
-          </button>
-        </div>
+        <TableHeader
+          title="Fila de análise"
+          count={proposals.length}
+          icon="⚠"
+          onExport={() => exportToExcel(proposals, 'fila_analise')}
+          onImport={() => openImport('queue')}
+        />
         <div className="overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center h-32">
@@ -283,6 +382,137 @@ export default function AntifraudPage() {
         </div>
       </div>
 
+      {/* Modal de importação */}
+      <Modal open={importModalOpen} onClose={closeImport} title="Importar Excel" size="lg">
+        <div className="space-y-4">
+          {!importResult && (
+            <>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Selecione um arquivo <strong>.xlsx</strong> ou <strong>.csv</strong> com as colunas:
+                <span className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded ml-1">
+                  {EXPORT_HEADERS.join(' · ')}
+                </span>
+              </p>
+
+              {/* Zona de drop */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                  dragOver
+                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-red-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                <div className="text-4xl mb-2">📤</div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Arraste o arquivo aqui ou <span className="text-red-600 font-medium">clique para selecionar</span>
+                </p>
+                <p className="text-xs text-gray-400 mt-1">.xlsx · .xls · .csv</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+                />
+              </div>
+
+              {importParsing && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-800" />
+                  Lendo arquivo...
+                </div>
+              )}
+
+              {importError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
+                  {importError}
+                </div>
+              )}
+
+              {importPreview.length > 0 && (
+                <>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Preview — {importPreview.length} linha(s) encontrada(s)
+                  </div>
+                  <div className="overflow-x-auto max-h-64 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0">
+                        <tr>
+                          {EXPORT_HEADERS.map(h => (
+                            <th key={h} className="table-header text-left whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.slice(0, 50).map((row, i) => (
+                          <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            {EXPORT_HEADERS.map(h => (
+                              <td key={h} className="table-cell whitespace-nowrap max-w-[160px] truncate">
+                                {String(row[h] ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                        {importPreview.length > 50 && (
+                          <tr>
+                            <td colSpan={EXPORT_HEADERS.length} className="table-cell text-center text-gray-400 py-2">
+                              ... e mais {importPreview.length - 50} linha(s)
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {importResult && (
+            <div className="space-y-3">
+              <div className="text-center py-4">
+                <div className="text-5xl mb-3">✅</div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Importação concluída</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-emerald-600">{importResult.updated}</div>
+                  <div className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Atualizadas</div>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-amber-600">{importResult.not_found}</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-400 mt-1">Não encontradas</div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-gray-500">{importResult.skipped}</div>
+                  <div className="text-xs text-gray-500 mt-1">Ignoradas</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <button onClick={closeImport} className="btn-secondary">
+              {importResult ? 'Fechar' : 'Cancelar'}
+            </button>
+            {!importResult && (
+              <button
+                onClick={handleConfirmImport}
+                disabled={importPreview.length === 0 || importSending || importParsing}
+                className="btn-primary disabled:opacity-50"
+              >
+                {importSending ? 'Importando...' : `Importar ${importPreview.length > 0 ? `(${importPreview.length})` : ''}`}
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de análise */}
       <Modal open={modal === 'analysis'} onClose={() => setModal(null)} title="Análise Antifraude" size="md">
         {selected && (
           <div className="space-y-4">
