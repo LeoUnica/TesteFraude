@@ -5,14 +5,12 @@ interface Widget {
 }
 
 const DEFAULT_WIDGETS: Widget[] = [
-  { key: 'total_propostas', label: 'Total de Propostas', description: 'Card com o total de propostas no periodo', enabled: true },
-  { key: 'aprovacoes', label: 'Aprovacoes', description: 'Card com propostas aprovadas', enabled: true },
-  { key: 'reprovacoes', label: 'Reprovacoes', description: 'Card com propostas reprovadas', enabled: true },
-  { key: 'pendencias', label: 'Pendencias', description: 'Card com pendencias em aberto', enabled: true },
-  { key: 'corretores_ativos', label: 'Corretores Ativos', description: 'Numero de corretores ativos', enabled: false },
-  { key: 'importacoes', label: 'Importacoes', description: 'Resumo de importacoes recentes', enabled: true },
-  { key: 'antifraude', label: 'Antifraude', description: 'Alertas e status do antifraude', enabled: true },
-  { key: 'averbacoes', label: 'Averbacoes', description: 'Propostas averbadas no periodo', enabled: false },
+  { key: 'analisar', label: 'Analisar', description: 'Propostas em blacklist ou que precisam passar na esteira', enabled: true },
+  { key: 'aprovadas_banco', label: 'Aprovadas no Banco', description: 'Propostas aprovadas dentro do banco', enabled: true },
+  { key: 'nao_mapeadas', label: 'Não Mapeadas', description: 'Propostas sem mapeamento de convênio', enabled: true },
+  { key: 'reprovar_banco', label: 'Reprovar no Banco', description: 'Propostas reprovadas no banco', enabled: true },
+  { key: 'suspeita_antifraude', label: 'Suspeita de Antifraude', description: 'Propostas com suspeita de fraude na triagem', enabled: true },
+  { key: 'agendar_acompanhamento', label: 'Agendar para Acompanhamento', description: 'Propostas agendadas para acompanhamento', enabled: true },
 ]
 
 const PERIODS = [

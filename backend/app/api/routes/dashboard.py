@@ -18,42 +18,23 @@ async def get_dashboard(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    def status_stats(antifraud_status: str) -> tuple[int, float]:
+        row = (
+            db.query(func.count(Proposal.id), func.coalesce(func.sum(Proposal.value), 0.0))
+            .filter(Proposal.antifraud_status == antifraud_status)
+            .one()
+        )
+        return int(row[0]), float(row[1])
+
     total_proposals = db.query(func.count(Proposal.id)).scalar() or 0
-    approved_auto = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.antifraud_status == "Aprovada no Banco")
-        .scalar() or 0
-    )
-    rejected = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.antifraud_status == "Reprovar no Banco")
-        .scalar() or 0
-    )
-    fraud_suspect = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.antifraud_status == "Suspeita de Antifraude")
-        .scalar() or 0
-    )
-    in_analysis = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.antifraud_status == "Em Analise")
-        .scalar() or 0
-    )
-    endorsed = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.endorsement_date.isnot(None))
-        .scalar() or 0
-    )
-    not_mapped = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.antifraud_status == "Nao Mapeada")
-        .scalar() or 0
-    )
-    scheduled = (
-        db.query(func.count(Proposal.id))
-        .filter(Proposal.antifraud_status == "Agendar para acompanhamento")
-        .scalar() or 0
-    )
+
+    in_analysis_count, in_analysis_value = status_stats("Em Analise")
+    approved_auto_count, approved_auto_value = status_stats("Aprovada no Banco")
+    not_mapped_count, not_mapped_value = status_stats("Nao Mapeada")
+    rejected_count, rejected_value = status_stats("Reprovar no Banco")
+    fraud_suspect_count, fraud_suspect_value = status_stats("Suspeita de Antifraude")
+    scheduled_count, scheduled_value = status_stats("Agendar para acompanhamento")
+
     total_brokers = (
         db.query(func.count(Broker.id))
         .filter(Broker.status == "ativo")
@@ -136,13 +117,18 @@ async def get_dashboard(
 
     return {
         "totalProposals": total_proposals,
-        "approvedAuto": approved_auto,
-        "rejected": rejected,
-        "fraudSuspect": fraud_suspect,
-        "inAnalysis": in_analysis,
-        "endorsed": endorsed,
-        "notMapped": not_mapped,
-        "scheduled": scheduled,
+        "inAnalysis": in_analysis_count,
+        "inAnalysisValue": in_analysis_value,
+        "approvedAuto": approved_auto_count,
+        "approvedAutoValue": approved_auto_value,
+        "notMapped": not_mapped_count,
+        "notMappedValue": not_mapped_value,
+        "rejected": rejected_count,
+        "rejectedValue": rejected_value,
+        "fraudSuspect": fraud_suspect_count,
+        "fraudSuspectValue": fraud_suspect_value,
+        "scheduled": scheduled_count,
+        "scheduledValue": scheduled_value,
         "totalBrokers": total_brokers,
         "totalRules": total_rules,
         "charts": {

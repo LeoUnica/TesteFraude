@@ -3,6 +3,7 @@ import api from '../../services/api'
 import Modal from '../../components/ui/Modal'
 import { statusBadge } from '../../components/ui/Badge'
 import Pagination from '../../components/ui/Pagination'
+import StatCard from '../../components/ui/StatCard'
 
 const ANALYSIS_STATUSES = [
   'Aprovada no Banco',
@@ -27,15 +28,15 @@ export default function AntifraudPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await api.get(`/antifraud/queue?page=${page}&limit=20`)
-      setProposals(res.data)
+      const res = await api.get(`/antifraud/queue?page=${page}&per_page=20`)
+      setProposals(res.data.data || [])
     } catch {} finally { setLoading(false) }
   }
 
   const loadStats = async () => {
     try {
       const res = await api.get('/dashboard')
-      setStats(res.data.stats)
+      setStats(res.data)
     } catch {}
   }
 
@@ -68,32 +69,14 @@ export default function AntifraudPage() {
         <p className="text-sm text-gray-500 dark:text-gray-400">Análise e validação de propostas suspeitas</p>
       </div>
 
-      {/* 6-card stat grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-amber-600">{stats.fraudSuspect || 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Suspeitas</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-blue-600">{stats.inAnalysis || 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Em Análise</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-emerald-600">{stats.approvedBank || 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Aprovadas no Banco</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-red-600">{stats.rejectedBank || 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Reprovadas no Banco</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-gray-500">{stats.notMapped || 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Não Mapeadas</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-3xl font-bold text-purple-600">{stats.scheduled || 0}</div>
-          <div className="text-xs text-gray-500 mt-1">Agendadas</div>
-        </div>
+      {/* Cards de status antifraude */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard title="Analisar" value={stats.inAnalysis ?? 0} amount={stats.inAnalysisValue ?? 0} icon="🔍" color="bg-purple-50 dark:bg-purple-900/20" subtitle="Blacklist / passa na esteira" />
+        <StatCard title="Aprovadas no Banco" value={stats.approvedAuto ?? 0} amount={stats.approvedAutoValue ?? 0} icon="✅" color="bg-emerald-50 dark:bg-emerald-900/20" subtitle="Dentro do banco" />
+        <StatCard title="Não Mapeadas" value={stats.notMapped ?? 0} amount={stats.notMappedValue ?? 0} icon="🗂️" color="bg-yellow-50 dark:bg-yellow-900/20" subtitle="Mapeamento de convênios" />
+        <StatCard title="Reprovar no Banco" value={stats.rejected ?? 0} amount={stats.rejectedValue ?? 0} icon="❌" color="bg-red-50 dark:bg-red-900/20" subtitle="Reprovação bancária" />
+        <StatCard title="Suspeita de Antifraude" value={stats.fraudSuspect ?? 0} amount={stats.fraudSuspectValue ?? 0} icon="🚨" color="bg-amber-50 dark:bg-amber-900/20" subtitle="Triagem antifraude" />
+        <StatCard title="Agendar para Acompanhamento" value={stats.scheduled ?? 0} amount={stats.scheduledValue ?? 0} icon="📅" color="bg-sky-50 dark:bg-sky-900/20" subtitle="Agendado" />
       </div>
 
       <div className="card p-0 overflow-hidden">

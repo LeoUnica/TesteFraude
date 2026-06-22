@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer,
@@ -7,10 +7,29 @@ import StatCard from '../components/ui/StatCard'
 import { useDashboard } from '../hooks/useDashboard'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
+const STORAGE_KEY = 'dashboard_config'
+
+function readWidgetConfig(): Record<string, boolean> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) return JSON.parse(saved).widgets || {}
+  } catch {}
+  return {}
+}
 
 export default function Dashboard() {
   const [filters, setFilters] = useState({ date_from: '', date_to: '' })
+  const [widgetConfig, setWidgetConfig] = useState<Record<string, boolean>>(() => readWidgetConfig())
   const { data, isLoading } = useDashboard(filters)
+
+  useEffect(() => {
+    const onStorage = () => setWidgetConfig(readWidgetConfig())
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', onStorage)
+    return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('focus', onStorage) }
+  }, [])
+
+  const show = (key: string) => widgetConfig[key] !== false
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -50,14 +69,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard title="Analisar" value={stats.inAnalysis || 0} icon="🔍" color="bg-purple-50 dark:bg-purple-900/20" subtitle="Blacklist / passa na esteira" />
-        <StatCard title="Aprovadas no Banco" value={stats.approvedAuto || 0} icon="✅" color="bg-emerald-50 dark:bg-emerald-900/20" subtitle="Dentro do banco" />
-        <StatCard title="Não Mapeadas" value={stats.notMapped || 0} icon="🗂️" color="bg-yellow-50 dark:bg-yellow-900/20" subtitle="Mapeamento de convênios" />
-        <StatCard title="Reprovar no Banco" value={stats.rejected || 0} icon="❌" color="bg-red-50 dark:bg-red-900/20" subtitle="Reprovação bancária" />
-        <StatCard title="Suspeita de Antifraude" value={stats.fraudSuspect || 0} icon="🚨" color="bg-amber-50 dark:bg-amber-900/20" subtitle="Triagem antifraude" />
-        <StatCard title="Agendar para Acompanhamento" value={stats.scheduled || 0} icon="📅" color="bg-sky-50 dark:bg-sky-900/20" subtitle="Agendado" />
-      </div>
+      {/* Cards de status antifraude */}
+      {[
+        show('analisar'), show('aprovadas_banco'), show('nao_mapeadas'),
+        show('reprovar_banco'), show('suspeita_antifraude'), show('agendar_acompanhamento'),
+      ].some(Boolean) && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {show('analisar') && <StatCard title="Analisar" value={stats.inAnalysis ?? 0} amount={stats.inAnalysisValue ?? 0} icon="🔍" color="bg-purple-50 dark:bg-purple-900/20" subtitle="Blacklist / passa na esteira" />}
+          {show('aprovadas_banco') && <StatCard title="Aprovadas no Banco" value={stats.approvedAuto ?? 0} amount={stats.approvedAutoValue ?? 0} icon="✅" color="bg-emerald-50 dark:bg-emerald-900/20" subtitle="Dentro do banco" />}
+          {show('nao_mapeadas') && <StatCard title="Não Mapeadas" value={stats.notMapped ?? 0} amount={stats.notMappedValue ?? 0} icon="🗂️" color="bg-yellow-50 dark:bg-yellow-900/20" subtitle="Mapeamento de convênios" />}
+          {show('reprovar_banco') && <StatCard title="Reprovar no Banco" value={stats.rejected ?? 0} amount={stats.rejectedValue ?? 0} icon="❌" color="bg-red-50 dark:bg-red-900/20" subtitle="Reprovação bancária" />}
+          {show('suspeita_antifraude') && <StatCard title="Suspeita de Antifraude" value={stats.fraudSuspect ?? 0} amount={stats.fraudSuspectValue ?? 0} icon="🚨" color="bg-amber-50 dark:bg-amber-900/20" subtitle="Triagem antifraude" />}
+          {show('agendar_acompanhamento') && <StatCard title="Agendar para Acompanhamento" value={stats.scheduled ?? 0} amount={stats.scheduledValue ?? 0} icon="📅" color="bg-sky-50 dark:bg-sky-900/20" subtitle="Agendado" />}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 lg:col-span-2">

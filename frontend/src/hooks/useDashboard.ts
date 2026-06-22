@@ -15,6 +15,6 @@ export function useDashboard(filters: DashboardFilters = {}) {
       if (filters.date_to) params.set('date_to', filters.date_to)
       return api.get(`/dashboard?${params}`).then((r) => r.data)
     },
-    staleTime: 30000,
+    staleTime: 0,
   })
 }
