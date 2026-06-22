@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
 import Modal from '../../components/ui/Modal'
 import Pagination from '../../components/ui/Pagination'
-import { Users, Eye, AlertTriangle } from 'lucide-react'
+import { Users, Eye, AlertTriangle, Zap, CheckCircle } from 'lucide-react'
 
 const PRIVILEGE_LABELS: Record<string, { label: string; color: string }> = {
   'Corretor Interno': { label: 'Corretor Interno', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
@@ -40,16 +40,23 @@ export default function StormColaboradoresPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const LIMIT = 20
+  const [stormUsername, setStormUsername] = useState<string | null>(null)
 
   const [selected, setSelected] = useState<any>(null)
   const [detailModal, setDetailModal] = useState(false)
+
+  useEffect(() => {
+    api.get('/stormfin/status').then(r => {
+      if (r.data?.connected || r.data?.ok) setStormUsername(r.data.username ?? null)
+    }).catch(() => {})
+  }, [])
 
   const load = async (p = page) => {
     setLoading(true)
     setStormError('')
     try {
-      const params: any = { page: p, limit: LIMIT }
-      if (search) params.search = search
+      const params: any = { pagina: p }
+      if (search) params.usuario = search
       if (filterStatus) params.status = filterStatus
       const res = await api.get('/stormfin/colaboradores', { params })
       const data = res.data
@@ -91,7 +98,17 @@ export default function StormColaboradoresPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Lista de colaboradores cadastrados na plataforma Storm Fin</p>
           </div>
         </div>
-        <button onClick={() => load(page)} className="btn-secondary text-sm">Atualizar</button>
+        <div className="flex items-center gap-3">
+          {stormUsername && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg">
+              <CheckCircle size={15} className="text-emerald-600 dark:text-emerald-400" />
+              <Zap size={13} className="text-emerald-500 dark:text-emerald-400" />
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Storm conectado como</span>
+              <span className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{stormUsername}</span>
+            </div>
+          )}
+          <button onClick={() => load(page)} className="btn-secondary text-sm">Atualizar</button>
+        </div>
       </div>
 
       {/* Banner de erro Storm */}

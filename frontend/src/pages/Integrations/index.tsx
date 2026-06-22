@@ -45,6 +45,8 @@ export default function IntegrationsPage() {
     } catch {} finally { setLoading(false) }
   }
 
+  const [stormUsername, setStormUsername] = useState<string | null>(null)
+
   const loadStorm = async () => {
     try {
       const res = await api.get('/integrations')
@@ -56,15 +58,22 @@ export default function IntegrationsPage() {
         setStormCreds({ username: cfg.username ?? storm.username ?? '', password: '' })
         setStormStatus('desconectado')
       }
-    } catch {
-      // ignorar
-    }
+    } catch {}
 
     try {
       const statsRes = await api.get('/stormfin/status')
-      setStormStats(statsRes.data)
-      setStormStatus('conectado')
-    } catch {}
+      const d = statsRes.data
+      if (d?.connected || d?.ok) {
+        setStormStats(d)
+        setStormStatus('conectado')
+        setStormUsername(d.username ?? null)
+      } else {
+        setStormStatus('desconectado')
+        setStormUsername(null)
+      }
+    } catch {
+      setStormStatus('desconectado')
+    }
   }
 
   useEffect(() => {
@@ -171,6 +180,21 @@ export default function IntegrationsPage() {
       {/* ─── ABA STORM FIN ─────────────────────────────────────────────────── */}
       {mainTab === 'storm' && (
         <div className="space-y-4">
+
+          {/* Banner de usuário conectado */}
+          {stormStatus === 'conectado' && stormUsername && (
+            <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 rounded-xl">
+              <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-sm">{stormUsername.charAt(0).toUpperCase()}</span>
+              </div>
+              <div>
+                <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wide">Conectado ao Storm Fin</div>
+                <div className="text-base font-bold text-emerald-800 dark:text-emerald-300">{stormUsername}</div>
+              </div>
+              <CheckCircle size={22} className="ml-auto text-emerald-500 dark:text-emerald-400" />
+            </div>
+          )}
+
           {/* Config card */}
           <div className="card p-6 space-y-5">
             <div className="flex items-center justify-between">

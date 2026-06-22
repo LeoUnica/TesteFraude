@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 // Corretores
 import BrokersPage from './pages/Brokers'
 import BrokersImportPage from './pages/Brokers/Import'
+import BrokersImportEmailsPhonesPage from './pages/Brokers/ImportEmailsPhones'
 
 // Grupos de Corretores
 import BrokerGroupsPage from './pages/BrokerGroups'
@@ -30,6 +31,8 @@ import ImportLayoutPage from './pages/Imports/Layout'
 import ImportDataMapPage from './pages/Imports/DataMap'
 import BankReturnsPage from './pages/Imports/BankReturns'
 import PendenciesPage from './pages/Imports/Pendencies'
+import CancelImportPage from './pages/Imports/Cancel'
+import ManMapDadosPage from './pages/Imports/ManMapDados'
 
 // Admin
 import UsersPage from './pages/Admin/Users'
@@ -52,6 +55,7 @@ import StormSimulacaoPage from './pages/Storm/Simulacao'
 // Config / Reports
 import DashboardConfigPage from './pages/Config/Dashboard'
 import ReportsPage from './pages/Reports'
+import PlaceholderPage from './components/ui/PlaceholderPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -69,6 +73,7 @@ function AppRoutes() {
         {/* Corretores */}
         <Route path="corretores" element={<BrokersPage />} />
         <Route path="corretores/importacao" element={<BrokersImportPage />} />
+        <Route path="corretores/importacao/emails-telefones" element={<BrokersImportEmailsPhonesPage />} />
 
         {/* Grupos de Corretores */}
         <Route path="grupos" element={<BrokerGroupsPage />} />
@@ -97,19 +102,40 @@ function AppRoutes() {
         {/* Importacoes */}
         <Route path="importacoes" element={<ImportHistoryPage />} />
         <Route path="importacoes/importar" element={<ImportPage />} />
+        <Route path="importacoes/cancelar" element={<CancelImportPage />} />
         <Route path="importacoes/layout" element={<ImportLayoutPage />} />
         <Route path="importacoes/dados" element={<ImportDataMapPage />} />
+        <Route path="importacoes/man-map-dados" element={<ManMapDadosPage />} />
         <Route path="importacoes/retornos" element={<BankReturnsPage />} />
         <Route path="importacoes/pendencias" element={<PendenciesPage />} />
 
-        {/* Admin */}
+        {/* Admin — Cadastros */}
         <Route path="admin/usuarios" element={<UsersPage />} />
         <Route path="admin/perfis" element={<ProfilesPage />} />
         <Route path="admin/convenios" element={<ConveniosPage />} />
         <Route path="admin/bancos" element={<BanksPage />} />
         <Route path="admin/produtos" element={<ProductsPage />} />
+        <Route path="admin/produtos/importar" element={<PlaceholderPage title="Importar Produtos" />} />
+        <Route path="admin/produtos/cancelar" element={<PlaceholderPage title="Cancelar Importação de Produtos" />} />
+        <Route path="admin/cpf-cnpj-restritos" element={<PlaceholderPage title="CPF/CNPJ Restritos" description="Busca e cadastro de CPFs e CNPJs restritos" />} />
+        <Route path="admin/cpf-cnpj-restritos/importar" element={<PlaceholderPage title="Importar CPF/CNPJ Restritos" />} />
+        <Route path="admin/cpf-cnpj-restritos/cancelar" element={<PlaceholderPage title="Cancelar Importação de CPF/CNPJ" />} />
+
+        {/* Admin — Operações */}
+        <Route path="admin/operacoes" element={<PlaceholderPage title="Operações" description="Busca e cadastro de operações" />} />
+        <Route path="admin/operacoes/importar" element={<PlaceholderPage title="Importar Operações" />} />
+        <Route path="admin/operacoes/cancelar" element={<PlaceholderPage title="Cancelar Importação de Operações" />} />
+
+        {/* Admin — Logs */}
         <Route path="admin/logs" element={<AuditPage />} />
         <Route path="admin/acessos-corretores" element={<BrokerAccessPage />} />
+        <Route path="admin/logs/acoes" element={<PlaceholderPage title="Log de Ações" description="Histórico de ações realizadas no sistema" />} />
+
+        {/* Admin — Backup / BlackList */}
+        <Route path="admin/backup" element={<PlaceholderPage title="Backup de Dados" description="Exportação e backup dos dados do sistema" />} />
+        <Route path="admin/blacklist/cpf" element={<PlaceholderPage title="BlackList — Por CPF" description="Gerenciamento de CPFs na blacklist" />} />
+        <Route path="admin/blacklist/telefone" element={<PlaceholderPage title="BlackList — Por Telefone" description="Gerenciamento de telefones na blacklist" />} />
+        <Route path="admin/blacklist/importar-telefone" element={<PlaceholderPage title="BlackList — Importar Telefone" />} />
 
         {/* Config / Reports */}
         <Route path="configuracao-dashboard" element={<DashboardConfigPage />} />

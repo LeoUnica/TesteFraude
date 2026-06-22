@@ -161,10 +161,16 @@ async def status_conexao(
     db: Annotated[Session, Depends(get_db)],
 ):
     """
-    Testa conectividade com a API StormFin usando as credenciais do banco.
+    Testa conectividade com a API StormFin e retorna o usuário configurado.
     """
-    username, password = await get_storm_creds(db)
+    try:
+        username, password = await get_storm_creds(db)
+    except HTTPException:
+        return {"ok": False, "connected": False, "username": None, "error": "Credenciais não configuradas"}
+
     result = await stormfin.test_connection(username, password)
+    result["connected"] = result.get("ok", False)
+    result["username"] = username
     return result
 
 

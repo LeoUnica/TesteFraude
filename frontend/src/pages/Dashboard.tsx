@@ -18,7 +18,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const stats = data?.stats || {}
+  const stats = data || {}
   const charts = data?.charts || {}
 
   return (
@@ -50,15 +50,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Total de Propostas" value={stats.totalProposals || 0} icon="📋" color="bg-blue-50 dark:bg-blue-900/20" />
-        <StatCard title="Aprovações" value={stats.approvedAuto || 0} icon="✅" color="bg-emerald-50 dark:bg-emerald-900/20" />
-        <StatCard title="Reprovações" value={stats.rejected || 0} icon="❌" color="bg-red-50 dark:bg-red-900/20" />
-        <StatCard title="Suspeitas de Fraude" value={stats.fraudSuspect || 0} icon="🚨" color="bg-amber-50 dark:bg-amber-900/20" />
-        <StatCard title="Em Análise" value={stats.inAnalysis || 0} icon="🔍" color="bg-purple-50 dark:bg-purple-900/20" />
-        <StatCard title="Averbadas" value={stats.endorsed || 0} icon="✔️" color="bg-teal-50 dark:bg-teal-900/20" />
-        <StatCard title="Corretores Ativos" value={stats.totalBrokers || 0} icon="👥" color="bg-indigo-50 dark:bg-indigo-900/20" />
-        <StatCard title="Regras Antifraude" value={stats.totalRules || 0} icon="🛡️" color="bg-orange-50 dark:bg-orange-900/20" />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard title="Analisar" value={stats.inAnalysis || 0} icon="🔍" color="bg-purple-50 dark:bg-purple-900/20" subtitle="Blacklist / passa na esteira" />
+        <StatCard title="Aprovadas no Banco" value={stats.approvedAuto || 0} icon="✅" color="bg-emerald-50 dark:bg-emerald-900/20" subtitle="Dentro do banco" />
+        <StatCard title="Não Mapeadas" value={stats.notMapped || 0} icon="🗂️" color="bg-yellow-50 dark:bg-yellow-900/20" subtitle="Mapeamento de convênios" />
+        <StatCard title="Reprovar no Banco" value={stats.rejected || 0} icon="❌" color="bg-red-50 dark:bg-red-900/20" subtitle="Reprovação bancária" />
+        <StatCard title="Suspeita de Antifraude" value={stats.fraudSuspect || 0} icon="🚨" color="bg-amber-50 dark:bg-amber-900/20" subtitle="Triagem antifraude" />
+        <StatCard title="Agendar para Acompanhamento" value={stats.scheduled || 0} icon="📅" color="bg-sky-50 dark:bg-sky-900/20" subtitle="Agendado" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

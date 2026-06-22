@@ -1,8 +1,9 @@
 import { useAuthStore } from '../store/authStore'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from '../context/ThemeContext'
-import { Menu, Sun, Moon, ChevronDown, LogOut } from 'lucide-react'
+import { Menu, Sun, Moon, ChevronDown, LogOut, Zap } from 'lucide-react'
+import api from '../services/api'
 
 const BREADCRUMBS: Record<string, string> = {
   '/': 'Dashboard',
@@ -27,6 +28,13 @@ export default function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [stormUser, setStormUser] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.get('/stormfin/status').then(r => {
+      if (r.data?.connected || r.data?.ok) setStormUser(r.data.username ?? null)
+    }).catch(() => {})
+  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -62,6 +70,14 @@ export default function Header({ onMenuToggle }: { onMenuToggle: () => void }) {
       </div>
 
       <div className="flex items-center gap-4">
+        {stormUser && (
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg">
+            <Zap size={13} className="text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Storm:</span>
+            <span className="text-xs text-emerald-800 dark:text-emerald-200 font-semibold">{stormUser}</span>
+          </div>
+        )}
+
         <div className="text-xs text-gray-500 dark:text-gray-400 hidden md:block">
           {new Date().toLocaleDateString('pt-BR', {
             weekday: 'long',
