@@ -27,13 +27,14 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg">P</div>
-          <h1 className="text-3xl font-bold text-white mb-1">Unica Promotora</h1>
-          <p className="text-slate-400 text-sm">Sistema de Gestão de Promotora de Crédito</p>
-        </div>
-
         <div className="bg-white rounded-2xl shadow-2xl p-8">
+
+          <div className="text-center mb-8">
+            <img src="/LogoUnica.jfif" alt="Unica Promotora" className="w-20 h-20 mx-auto mb-4 object-contain" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Unica Promotora</h1>
+            <p className="text-gray-500 text-sm">Sistema de Gestão de Promotora de Crédito</p>
+          </div>
+
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Acesso ao Sistema</h2>
             <p className="text-sm text-gray-500 mt-1">Insira suas credenciais para continuar</p>
