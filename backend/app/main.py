@@ -15,7 +15,7 @@ from .database import engine, SessionLocal
 from .models import (
     User, AuditLog, Convenio, Bank, Product,
     BrokerGroup, Broker, Proposal, AntifraudRule,
-    AntifraudAnalysis, Integration, PipelineConfig
+    AntifraudAnalysis, Integration, PipelineConfig, BlacklistEntry
 )
 from .database import Base
 from .core.security import get_password_hash
@@ -23,7 +23,7 @@ from .core.security import get_password_hash
 from .api.routes import (
     auth, users, brokers, broker_groups, proposals,
     convenios, banks, products, antifraud, dashboard,
-    reports, integrations, stormfin
+    reports, integrations, stormfin, blacklist
 )
 
 logger = structlog.get_logger()
@@ -164,6 +164,7 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(integrations.router, prefix="/api")
 app.include_router(stormfin.router, prefix="/api")
+app.include_router(blacklist.router, prefix="/api")
 
 
 @app.get("/api/health")

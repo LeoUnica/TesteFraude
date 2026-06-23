@@ -16,3 +16,6 @@ structlog==24.4.0
 python-dotenv==1.0.1
 python-multipart==0.0.20
 email-validator==2.2.0
+openpyxl==3.1.5
+fpdf2==2.8.1
+xlsxwriter==3.2.0

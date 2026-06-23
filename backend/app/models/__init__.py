@@ -9,6 +9,7 @@ from .proposal import Proposal
 from .antifraud import AntifraudRule, AntifraudAnalysis
 from .integration import Integration
 from .pipeline import PipelineConfig
+from .blacklist import BlacklistEntry
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "AntifraudAnalysis",
     "Integration",
     "PipelineConfig",
+    "BlacklistEntry",
 ]

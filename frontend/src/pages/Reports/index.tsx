@@ -37,6 +37,33 @@ export default function ReportsPage() {
     const a = document.createElement('a'); a.href = url; a.download = `relatorio_${activeReport}_${Date.now()}.csv`; a.click()
   }
 
+  const exportToExcel = async () => {
+    const token = localStorage.getItem('auth-storage')
+    let authToken = ''
+    try { authToken = JSON.parse(token || '{}')?.state?.token || '' } catch {}
+    const endpoint = activeReport === 'proposals' ? '/reports/proposals/excel' : '/reports/brokers/excel'
+    const params = new URLSearchParams()
+    if (filters.status) params.set('status', filters.status)
+    if (filters.date_from) params.set('date_from', filters.date_from)
+    if (filters.date_to) params.set('date_to', filters.date_to)
+    const res = await fetch(`/api${endpoint}?${params}`, { headers: { Authorization: `Bearer ${authToken}` } })
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `relatorio_${activeReport}.xlsx`; a.click()
+  }
+
+  const exportToPDF = async () => {
+    const token = localStorage.getItem('auth-storage')
+    let authToken = ''
+    try { authToken = JSON.parse(token || '{}')?.state?.token || '' } catch {}
+    const params = new URLSearchParams()
+    if (filters.status) params.set('status', filters.status)
+    const res = await fetch(`/api/reports/proposals/pdf?${params}`, { headers: { Authorization: `Bearer ${authToken}` } })
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `relatorio_propostas.pdf`; a.click()
+  }
+
   const printReport = () => window.print()
 
   return (
@@ -90,7 +117,13 @@ export default function ReportsPage() {
           <button onClick={loadReport} disabled={loading} className="btn-primary">{loading ? 'Gerando...' : '📊 Gerar Relatório'}</button>
           {generated && data.length > 0 && (
             <>
-              <button onClick={exportToCSV} className="btn-secondary">📥 Exportar CSV</button>
+              <button onClick={exportToCSV} className="btn-secondary">📥 CSV</button>
+              {(activeReport === 'proposals' || activeReport === 'brokers') && (
+                <button onClick={exportToExcel} className="btn-secondary">📊 Excel</button>
+              )}
+              {activeReport === 'proposals' && (
+                <button onClick={exportToPDF} className="btn-secondary">📄 PDF</button>
+              )}
               <button onClick={printReport} className="btn-secondary">🖨️ Imprimir</button>
             </>
           )}

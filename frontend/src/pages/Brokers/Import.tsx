@@ -50,26 +50,7 @@ export default function BrokersImportPage() {
     if (f && (f.name.endsWith('.csv') || f.name.endsWith('.xlsx'))) handleFile(f)
   }
 
-  const handleValidate = async () => {
-    if (!file) return
-    setLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await api.post('/brokers/validate-import', formData)
-      const { total, valid, invalid, errors: errs } = res.data
-      setStats(s => ({ ...s, total, valid, invalid }))
-      setErrors(errs || [])
-      setStage('validated')
-    } catch {
-      // Local mock validation if backend not ready
-      const mockTotal = preview.length * 5
-      const mockInvalid = Math.floor(mockTotal * 0.1)
-      setStats({ total: mockTotal, valid: mockTotal - mockInvalid, invalid: mockInvalid, imported: 0 })
-      setErrors([{ row: 3, field: 'CPF/CNPJ', message: 'Formato inválido' }])
-      setStage('validated')
-    } finally { setLoading(false) }
-  }
+  const handleValidate = () => setStage('validated')
 
   const handleImport = async () => {
     if (!file) return
@@ -78,11 +59,12 @@ export default function BrokersImportPage() {
       const formData = new FormData()
       formData.append('file', file)
       const res = await api.post('/brokers/import', formData)
-      setStats(s => ({ ...s, imported: res.data.imported || s.valid }))
+      const { inserted = 0, skipped = 0, errors: errs = [] } = res.data
+      setStats({ total: inserted + skipped, valid: inserted, invalid: skipped, imported: inserted })
+      setErrors(errs.map((msg: string, i: number) => ({ row: i + 2, field: '', message: msg })))
       setStage('done')
-    } catch {
-      setStats(s => ({ ...s, imported: s.valid }))
-      setStage('done')
+    } catch (err: any) {
+      setErrors([{ row: 0, field: '', message: err.response?.data?.detail || 'Erro ao importar arquivo' }])
     } finally { setLoading(false) }
   }
 

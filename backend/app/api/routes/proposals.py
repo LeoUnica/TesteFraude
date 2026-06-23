@@ -1,8 +1,11 @@
 import uuid
 import json
+import io
+import csv
 from datetime import datetime
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ...database import get_db
@@ -303,6 +306,124 @@ async def change_proposal_convenio(
     )
 
     return proposal_to_dict(proposal)
+
+
+@router.post("/import")
+async def import_proposals(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import openpyxl
+    content = await file.read()
+    rows = []
+
+    if file.filename.endswith(".xlsx") or file.filename.endswith(".xls"):
+        wb = openpyxl.load_workbook(io.BytesIO(content))
+        ws = wb.active
+        headers = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            rows.append({headers[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(row)})
+    else:
+        decoded = content.decode("utf-8-sig", errors="replace")
+        reader = csv.DictReader(io.StringIO(decoded))
+        rows = [{k.strip().lower(): v.strip() for k, v in r.items()} for r in reader]
+
+    inserted, skipped, errors = 0, 0, []
+
+    for i, row in enumerate(rows, start=2):
+        code = row.get("codigo") or row.get("code") or row.get("proposta") or row.get("numero_proposta") or ""
+        cpf = row.get("cpf") or row.get("documento") or ""
+        client_name = row.get("nome") or row.get("cliente") or row.get("client_name") or ""
+
+        if not code or not cpf or not client_name:
+            errors.append(f"Linha {i}: código, CPF e nome são obrigatórios")
+            skipped += 1
+            continue
+
+        existing = db.query(Proposal).filter(Proposal.code == code).first()
+        if existing:
+            skipped += 1
+            continue
+
+        try:
+            value = float(row.get("valor") or row.get("value") or 0)
+        except (ValueError, TypeError):
+            value = 0.0
+
+        db.add(Proposal(
+            id=str(uuid.uuid4()),
+            code=code,
+            cpf=cpf,
+            client_name=client_name,
+            value=value,
+            status=row.get("status") or "Pendente",
+            antifraud_status="Nao Analisado",
+            import_date=datetime.utcnow(),
+            documents=json.dumps([]),
+            history=json.dumps([]),
+            imported_by=current_user.id,
+            created_by=current_user.id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        ))
+        inserted += 1
+
+    db.commit()
+    audit_log(db, current_user.id, current_user.name, "IMPORT_PROPOSALS", "proposals",
+              new_value=json.dumps({"inserted": inserted, "skipped": skipped}))
+
+    return {"inserted": inserted, "skipped": skipped, "errors": errors}
+
+
+@router.get("/export/excel")
+async def export_proposals_excel(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    status_filter: Optional[str] = Query(None, alias="status"),
+    antifraud_status: Optional[str] = None,
+):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    query = db.query(Proposal)
+    if status_filter:
+        query = query.filter(Proposal.status == status_filter)
+    if antifraud_status:
+        query = query.filter(Proposal.antifraud_status == antifraud_status)
+    proposals = query.order_by(Proposal.created_at.desc()).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Propostas"
+
+    headers = ["Código", "CPF", "Cliente", "Valor", "Status", "Status Antifraude", "Data Importação", "Data Criação"]
+    header_fill = PatternFill(start_color="1E3A5F", end_color="1E3A5F", fill_type="solid")
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
+    for p in proposals:
+        ws.append([
+            p.code, p.cpf, p.client_name, p.value, p.status, p.antifraud_status,
+            p.import_date.strftime("%d/%m/%Y") if p.import_date else "",
+            p.created_at.strftime("%d/%m/%Y") if p.created_at else "",
+        ])
+
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = 22
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=propostas.xlsx"},
+    )
 
 
 @router.patch("/{proposal_id}/change-broker")

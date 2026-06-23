@@ -57,6 +57,9 @@ import DashboardConfigPage from './pages/Config/Dashboard'
 import ReportsPage from './pages/Reports'
 import PlaceholderPage from './components/ui/PlaceholderPage'
 
+// Blacklist
+import BlacklistPage from './pages/Blacklist'
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
   return user ? <>{children}</> : <Navigate to="/login" replace />
@@ -133,9 +136,10 @@ function AppRoutes() {
 
         {/* Admin — Backup / BlackList */}
         <Route path="admin/backup" element={<PlaceholderPage title="Backup de Dados" description="Exportação e backup dos dados do sistema" />} />
-        <Route path="admin/blacklist/cpf" element={<PlaceholderPage title="BlackList — Por CPF" description="Gerenciamento de CPFs na blacklist" />} />
-        <Route path="admin/blacklist/telefone" element={<PlaceholderPage title="BlackList — Por Telefone" description="Gerenciamento de telefones na blacklist" />} />
-        <Route path="admin/blacklist/importar-telefone" element={<PlaceholderPage title="BlackList — Importar Telefone" />} />
+        <Route path="admin/blacklist" element={<BlacklistPage />} />
+        <Route path="admin/blacklist/cpf" element={<BlacklistPage />} />
+        <Route path="admin/blacklist/telefone" element={<BlacklistPage />} />
+        <Route path="admin/blacklist/importar-telefone" element={<BlacklistPage />} />
 
         {/* Config / Reports */}
         <Route path="configuracao-dashboard" element={<DashboardConfigPage />} />
