@@ -33,8 +33,8 @@ FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 def seed_database():
     db = SessionLocal()
+    # Seed admin user — transaction separada para não ser revertida se o restante falhar
     try:
-        # Seed admin user
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
             all_permissions = {
@@ -63,7 +63,13 @@ def seed_database():
                 updated_at=datetime.utcnow(),
             )
             db.add(admin_user)
+            db.commit()
             logger.info("seed_admin_user_created")
+    except Exception as e:
+        db.rollback()
+        logger.error("seed_admin_error", error=str(e))
+
+    try:
 
         # Seed convenios
         convenios_data = [
