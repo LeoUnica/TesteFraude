@@ -132,9 +132,11 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("startup_creating_tables")
     try:
-        # Grant permissions before creating tables (PostgreSQL 15+)
+        from sqlalchemy import text
         with engine.connect() as conn:
-            conn.execute(__import__('sqlalchemy').text("GRANT ALL ON SCHEMA public TO current_user"))
+            conn.execute(text("GRANT ALL ON SCHEMA public TO current_user"))
+            conn.execute(text("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO current_user"))
+            conn.execute(text("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO current_user"))
             conn.commit()
     except Exception:
         pass
