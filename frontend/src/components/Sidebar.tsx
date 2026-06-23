@@ -221,14 +221,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="flex items-center justify-between px-4 py-4 border-b border-slate-700 h-16">
         {!collapsed ? (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-red-900 rounded-lg flex items-center justify-center text-white font-bold text-sm">U</div>
+            <img src="/Unica.png" alt="Unica Promotora" className="w-8 h-8 object-contain rounded-lg" />
             <div>
               <div className="text-sm font-bold text-white leading-tight">Unica Promotora</div>
               <div className="text-xs text-slate-400">Gestao de Credito</div>
             </div>
           </div>
         ) : (
-          <div className="w-8 h-8 bg-red-900 rounded-lg flex items-center justify-center text-white font-bold text-sm mx-auto">U</div>
+          <img src="/Unica.png" alt="Unica Promotora" className="w-8 h-8 object-contain rounded-lg mx-auto" />
         )}
       </div>
 
