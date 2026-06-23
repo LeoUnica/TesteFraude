@@ -180,6 +180,10 @@ if FRONTEND_DIST.exists():
         # Don't intercept API routes
         if full_path.startswith("api/"):
             return JSONResponse(status_code=404, content={"detail": "Not found"})
+        # Serve static files from dist root (images, fonts, etc.)
+        requested_file = FRONTEND_DIST / full_path
+        if requested_file.exists() and requested_file.is_file():
+            return FileResponse(str(requested_file))
         index_file = FRONTEND_DIST / "index.html"
         if index_file.exists():
             return FileResponse(
