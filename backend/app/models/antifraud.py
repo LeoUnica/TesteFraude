@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
+from sqlalchemy import Column, String, DateTime, Integer
 from datetime import datetime
 from ..database import Base
 
@@ -25,7 +25,7 @@ class AntifraudAnalysis(Base):
     __tablename__ = "antifraud_analyses"
 
     id = Column(String, primary_key=True)
-    proposal_id = Column(String, ForeignKey("proposals.id"), nullable=False)
+    proposal_id = Column(String, nullable=False)
     rule_id = Column(String, nullable=True)
     analyst_id = Column(String, nullable=True)
     status = Column(String, nullable=True)

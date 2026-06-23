@@ -125,10 +125,23 @@ def seed_database():
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("startup_creating_tables")
-    Base.metadata.create_all(bind=engine)
-    logger.info("startup_tables_created")
-    seed_database()
-    logger.info("startup_complete")
+    try:
+        # Grant permissions before creating tables (PostgreSQL 15+)
+        with engine.connect() as conn:
+            conn.execute(__import__('sqlalchemy').text("GRANT ALL ON SCHEMA public TO current_user"))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("startup_tables_created")
+    except Exception as e:
+        logger.error("startup_tables_error", error=str(e))
+    try:
+        seed_database()
+        logger.info("startup_complete")
+    except Exception as e:
+        logger.error("startup_seed_error", error=str(e))
     yield
     # Shutdown
     logger.info("shutdown")

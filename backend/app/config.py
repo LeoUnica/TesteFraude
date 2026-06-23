@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     STORMFIN_V1_URL: str = "https://openapi.stormfin.com.br"
     STORMFIN_USERNAME: str = ""
     STORMFIN_PASSWORD: str = ""
+    STORMFIN_CLIENT_ID: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Float, Integer, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Float, Integer, Text
 from datetime import datetime
 from ..database import Base
 
@@ -10,10 +10,10 @@ class Proposal(Base):
     code = Column(String, unique=True, nullable=False)
     cpf = Column(String, nullable=False)
     client_name = Column(String, nullable=False)
-    broker_id = Column(String, ForeignKey("brokers.id"), nullable=True)
-    convenio_id = Column(String, ForeignKey("convenios.id"), nullable=True)
-    bank_id = Column(String, ForeignKey("banks.id"), nullable=True)
-    product_id = Column(String, ForeignKey("products.id"), nullable=True)
+    broker_id = Column(String, nullable=True)
+    convenio_id = Column(String, nullable=True)
+    bank_id = Column(String, nullable=True)
+    product_id = Column(String, nullable=True)
     product_fgts = Column(String, nullable=True)
     value = Column(Float, default=0.0)
     installments = Column(Integer, default=0)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text
 from datetime import datetime
 from ..database import Base
 
@@ -7,7 +7,7 @@ class Integration(Base):
     __tablename__ = "integrations"
 
     id = Column(String, primary_key=True)
-    bank_id = Column(String, ForeignKey("banks.id"), nullable=True)
+    bank_id = Column(String, nullable=True)
     type = Column(String, nullable=True)
     api_url = Column(String, nullable=True)
     api_key = Column(String, nullable=True)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Column, String, DateTime
 from datetime import datetime
 from ..database import Base
 
@@ -12,7 +12,7 @@ class Broker(Base):
     cpf_cnpj = Column(String, unique=True, nullable=False)
     type = Column(String, default="Externo")
     status = Column(String, default="ativo")
-    group_id = Column(String, ForeignKey("broker_groups.id"), nullable=True)
+    group_id = Column(String, nullable=True)
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
