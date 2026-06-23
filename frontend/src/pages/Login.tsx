@@ -30,9 +30,7 @@ export default function Login() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
 
           <div className="text-center mb-8">
-            <img src="/LogoUnica.jfif" alt="Unica Promotora" className="w-20 h-20 mx-auto mb-4 object-contain" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">Unica Promotora</h1>
-            <p className="text-gray-500 text-sm">Sistema de Gestão de Promotora de Crédito</p>
+            <img src="/LogoUnica.png" alt="Unica Promotora" className="w-40 mx-auto mb-4 object-contain" />
           </div>
 
           <div className="mb-6">
@@ -101,7 +99,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-xs text-slate-500 mt-6">
-          © 2024 Unica Promotora · Todos os direitos reservados
+          © 2026 Unica Promotora · Todos os direitos reservados
         </p>
       </div>
     </div>
