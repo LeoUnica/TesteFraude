@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .database import engine, SessionLocal
 from .models import (
@@ -134,12 +135,11 @@ async def lifespan(app: FastAPI):
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
+            # Grant schema-level access so the current user can create tables
             conn.execute(text("GRANT ALL ON SCHEMA public TO current_user"))
-            conn.execute(text("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO current_user"))
-            conn.execute(text("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO current_user"))
             conn.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("startup_grant_schema_failed", error=str(e))
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("startup_tables_created")
@@ -165,7 +165,12 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4500", "http://127.0.0.1:4500"],
+    allow_origins=[
+        "http://localhost:4500",
+        "http://127.0.0.1:4500",
+        "http://localhost:4501",   # Vite dev server
+        "http://127.0.0.1:4501",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -193,30 +198,40 @@ async def health_check():
     return {"status": "ok", "service": "Unica Promotora API", "version": "2.0.0"}
 
 
-# Serve frontend static files if dist exists
+# Serve frontend static files if dist exists.
+# Uses exception_handler instead of a catch-all GET route to avoid interfering
+# with FastAPI's redirect_slashes mechanism for API paths.
 if FRONTEND_DIST.exists():
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str, request: Request):
-        # Don't intercept API routes
-        if full_path.startswith("api/"):
-            return JSONResponse(status_code=404, content={"detail": "Not found"})
-        # Serve static files from dist root (images, fonts, etc.)
-        requested_file = FRONTEND_DIST / full_path
-        if requested_file.exists() and requested_file.is_file():
-            return FileResponse(str(requested_file))
-        index_file = FRONTEND_DIST / "index.html"
-        if index_file.exists():
-            return FileResponse(
-                str(index_file),
-                headers={
-                    "Cache-Control": "no-cache, no-store, must-revalidate",
-                    "Pragma": "no-cache",
-                    "Expires": "0",
-                },
+    @app.exception_handler(StarletteHTTPException)
+    async def spa_404_handler(request: Request, exc: StarletteHTTPException):
+        # Let real API errors propagate as JSON
+        if request.url.path.startswith("/api"):
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
             )
-        return JSONResponse(status_code=404, content={"detail": "Frontend not built"})
+        # For non-API 404s, try to serve a static file first, then fall back to SPA
+        if exc.status_code == 404:
+            path = request.url.path.lstrip("/")
+            requested_file = FRONTEND_DIST / path
+            if requested_file.exists() and requested_file.is_file():
+                return FileResponse(str(requested_file))
+            index_file = FRONTEND_DIST / "index.html"
+            if index_file.exists():
+                return FileResponse(
+                    str(index_file),
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0",
+                    },
+                )
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 else:
     @app.get("/")
     async def root():

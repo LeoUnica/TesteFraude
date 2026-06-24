@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     STORMFIN_USERNAME: str = ""
     STORMFIN_PASSWORD: str = ""
     STORMFIN_CLIENT_ID: str = ""
+    STORMFIN_CLIENT_SECRET: str = ""
+    STORMFIN_CLIENT_SECRET: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

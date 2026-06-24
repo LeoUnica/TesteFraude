@@ -2,7 +2,7 @@ import uuid
 import json
 from datetime import datetime
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ...database import get_db
@@ -50,8 +50,15 @@ def group_to_dict(g: BrokerGroup, broker_count: int = 0) -> dict:
 async def list_broker_groups(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    name: Optional[str] = None,
+    status_filter: Optional[str] = Query(None, alias="status"),
 ):
-    groups = db.query(BrokerGroup).order_by(BrokerGroup.name).all()
+    query = db.query(BrokerGroup)
+    if name:
+        query = query.filter(BrokerGroup.name.ilike(f"%{name}%"))
+    if status_filter:
+        query = query.filter(BrokerGroup.status == status_filter)
+    groups = query.order_by(BrokerGroup.name).all()
     result = []
     for g in groups:
         count = db.query(Broker).filter(Broker.group_id == g.id).count()

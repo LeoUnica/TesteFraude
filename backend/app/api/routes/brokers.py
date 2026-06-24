@@ -74,31 +74,36 @@ async def list_brokers(
     db: Annotated[Session, Depends(get_db)],
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    limit: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
     group_id: Optional[str] = None,
+    name: Optional[str] = None,
+    cpf_cnpj: Optional[str] = None,
     search: Optional[str] = None,
 ):
+    effective_per_page = min(limit, 500) if limit else per_page
     query = db.query(Broker)
     if status_filter:
         query = query.filter(Broker.status == status_filter)
     if group_id:
         query = query.filter(Broker.group_id == group_id)
-    if search:
+    search_term = search or name or cpf_cnpj
+    if search_term:
         query = query.filter(
-            (Broker.name.ilike(f"%{search}%"))
-            | (Broker.code.ilike(f"%{search}%"))
-            | (Broker.cpf_cnpj.ilike(f"%{search}%"))
+            (Broker.name.ilike(f"%{search_term}%"))
+            | (Broker.code.ilike(f"%{search_term}%"))
+            | (Broker.cpf_cnpj.ilike(f"%{search_term}%"))
         )
 
     total = query.count()
-    brokers = query.order_by(Broker.name).offset((page - 1) * per_page).limit(per_page).all()
+    brokers = query.order_by(Broker.name).offset((page - 1) * effective_per_page).limit(effective_per_page).all()
 
     return {
         "data": [broker_to_dict(b) for b in brokers],
         "total": total,
         "page": page,
-        "per_page": per_page,
-        "pages": (total + per_page - 1) // per_page,
+        "per_page": effective_per_page,
+        "pages": (total + effective_per_page - 1) // effective_per_page,
     }
 
 

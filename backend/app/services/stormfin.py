@@ -40,19 +40,40 @@ class StormFinService:
 
     async def _get_token(self, username: str, password: str) -> str:
         """
-        Obtain a Bearer token from StormFin via POST /token.
+        Obtain a Bearer token from StormFin via POST /token (OAuth2 password grant).
         Raises httpx.HTTPError on network or HTTP failures.
         """
         url = f"{_BASE_URL}/token"
+        payload: dict[str, str] = {
+            "grant_type": "password",
+            "username": username,
+            "password": password,
+        }
+        if settings.STORMFIN_CLIENT_ID:
+            payload["client_id"] = settings.STORMFIN_CLIENT_ID
+        if settings.STORMFIN_CLIENT_SECRET:
+            payload["client_secret"] = settings.STORMFIN_CLIENT_SECRET
+
+        logger.info("stormfin_token_request", url=url, username=username,
+                    client_id=settings.STORMFIN_CLIENT_ID or "(not set)")
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 url,
-                data={"username": username, "password": password},
+                data=payload,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
+            if not response.is_success:
+                logger.error(
+                    "stormfin_token_failed",
+                    status=response.status_code,
+                    body=response.text[:500],
+                    username=username,
+                )
             response.raise_for_status()
             data = response.json()
-            token: str = data["access_token"]
+            token: str = data.get("access_token") or data.get("token") or ""
+            if not token:
+                raise ValueError(f"Token não encontrado na resposta: {data}")
             logger.info("stormfin_token_obtained", username=username)
             return token
 
@@ -342,27 +363,239 @@ class StormFinService:
     # ------------------------------------------------------------------
 
     async def simular_fgts(
-        self, username: str, password: str, cpf: str, banco_id: str
+        self,
+        username: str,
+        password: str,
+        cpf: str,
+        banco_id: str,
+        ler_cache: bool = True,
+        provedor: str | None = None,
     ) -> dict:
         try:
-            data = await self._get(
-                username, password, "/simulacoes/fgts",
-                params={"cpf": cpf, "banco_id": banco_id},
-            )
+            params: dict[str, Any] = {"cpf": cpf, "banco_id": banco_id, "ler_cache": ler_cache}
+            if provedor:
+                params["provedor"] = provedor
+            data = await self._get(username, password, "/simulacoes/fgts", params=params)
             return {"ok": True, "data": data}
         except Exception as exc:
             logger.warning("stormfin_simular_fgts_failed", error=str(exc))
             return {"ok": False, "error": str(exc)}
 
     async def simular_clt(
-        self, username: str, password: str, cpf: str, banco_id: str, **kwargs
+        self,
+        username: str,
+        password: str,
+        cpf: str,
+        banco_id: str,
+        tipo_simulacao: str | None = None,
+        valor_solicitado: float | None = None,
+        matricula: str | None = None,
+        **kwargs,
     ) -> dict:
         try:
-            params = {"cpf": cpf, "banco_id": banco_id, **kwargs}
+            params: dict[str, Any] = {"cpf": cpf, "banco_id": banco_id}
+            if tipo_simulacao:
+                params["tipo_simulacao"] = tipo_simulacao
+            if valor_solicitado is not None:
+                params["valor_solicitado"] = valor_solicitado
+            if matricula:
+                params["matricula"] = matricula
+            params.update(kwargs)
             data = await self._get(username, password, "/simulacoes/clt", params=params)
             return {"ok": True, "data": data}
         except Exception as exc:
             logger.warning("stormfin_simular_clt_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    # ------------------------------------------------------------------
+    # Digitação (criação de propostas no StormFin)
+    # ------------------------------------------------------------------
+
+    async def digitacao_fgts(self, username: str, password: str, dados: dict) -> dict:
+        try:
+            data = await self._post(username, password, "/digitacoes/fgts", body=dados)
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_digitacao_fgts_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def digitacao_clt(self, username: str, password: str, dados: dict) -> dict:
+        try:
+            data = await self._post(username, password, "/digitacoes/clt", body=dados)
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_digitacao_clt_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def campos_obrigatorios_fgts(self, username: str, password: str, banco_id: str) -> dict:
+        try:
+            data = await self._get(username, password, f"/bancos/{banco_id}/campos_obrigatorios/fgts")
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_campos_fgts_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def campos_obrigatorios_clt(self, username: str, password: str, banco_id: str) -> dict:
+        try:
+            data = await self._get(username, password, f"/bancos/{banco_id}/campos_obrigatorios/clt")
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_campos_clt_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def link_formalizacao_fgts(self, username: str, password: str, dados: dict) -> dict:
+        try:
+            data = await self._post(username, password, "/formalizacoes/fgts/link", body=dados)
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_link_formalizacao_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    # ------------------------------------------------------------------
+    # Banco / Órgãos / Tabelas / Prazos (dados de referência)
+    # ------------------------------------------------------------------
+
+    async def get_banco_orgaos(self, username: str, password: str, banco_id: str) -> list:
+        try:
+            data = await self._get(username, password, f"/bancos/{banco_id}/banco_orgaos")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_get_banco_orgaos_failed", error=str(exc))
+            return []
+
+    async def get_tabelas(self, username: str, password: str, banco_orgao_id: str) -> list:
+        try:
+            data = await self._get(username, password, f"/banco_orgaos/{banco_orgao_id}/tabelas")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_get_tabelas_failed", error=str(exc))
+            return []
+
+    async def get_prazos(self, username: str, password: str, tabela_id: str) -> list:
+        try:
+            data = await self._get(username, password, f"/tabelas/{tabela_id}/prazos")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_get_prazos_failed", error=str(exc))
+            return []
+
+    async def get_paises(self, username: str, password: str) -> list:
+        try:
+            data = await self._get(username, password, "/paises")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_get_paises_failed", error=str(exc))
+            return []
+
+    async def get_nacionalidades(self, username: str, password: str) -> list:
+        try:
+            data = await self._get(username, password, "/nacionalidades")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_get_nacionalidades_failed", error=str(exc))
+            return []
+
+    async def get_tipos_origem_cliente(self, username: str, password: str) -> list:
+        try:
+            data = await self._get(username, password, "/tipos_origem_cliente")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_tipos_origem_failed", error=str(exc))
+            return []
+
+    async def get_beneficios_especie(self, username: str, password: str) -> list:
+        try:
+            data = await self._get(username, password, "/beneficios_especie")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_beneficios_especie_failed", error=str(exc))
+            return []
+
+    async def get_permissoes(self, username: str, password: str) -> list:
+        try:
+            data = await self._get(username, password, "/permissoes")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_permissoes_failed", error=str(exc))
+            return []
+
+    async def get_beneficios_situacoes_bloqueio(self, username: str, password: str) -> list:
+        try:
+            data = await self._get(username, password, "/beneficios/situacoes_bloqueio")
+            return data if isinstance(data, list) else data.get("data", data)
+        except Exception as exc:
+            logger.warning("stormfin_beneficios_bloqueio_failed", error=str(exc))
+            return []
+
+    # ------------------------------------------------------------------
+    # Contratos — criação e edição
+    # ------------------------------------------------------------------
+
+    async def criar_contrato(self, username: str, password: str, dados: dict) -> dict:
+        try:
+            data = await self._post(username, password, "/contratos", body=dados)
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_criar_contrato_full_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def clonar_contrato(
+        self, username: str, password: str, ff: str, dados: dict | None = None
+    ) -> dict:
+        try:
+            data = await self._post(username, password, f"/contratos/{ff}/clone", body=dados or {})
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_clonar_contrato_failed", ff=ff, error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def get_contratos_portados(self, username: str, password: str, ff: str) -> dict:
+        try:
+            data = await self._get(username, password, f"/contratos/{ff}/portados")
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_contratos_portados_failed", ff=ff, error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    async def relatorio_contratos(
+        self, username: str, password: str, data_str: str, status: str | None = None
+    ) -> dict:
+        try:
+            params: dict[str, Any] = {"data": data_str}
+            if status:
+                params["status"] = status
+            result = await self._get(username, password, "/relatorios/contratos_digitados_pagos", params=params)
+            return {"ok": True, "data": result}
+        except Exception as exc:
+            logger.warning("stormfin_relatorio_contratos_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    # ------------------------------------------------------------------
+    # Colaboradores
+    # ------------------------------------------------------------------
+
+    async def contra_senha_colaborador(
+        self, username: str, password: str, dados: dict
+    ) -> dict:
+        try:
+            data = await self._post(username, password, "/colaboradores/contra_senha", body=dados)
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_contra_senha_failed", error=str(exc))
+            return {"ok": False, "error": str(exc)}
+
+    # ------------------------------------------------------------------
+    # Mecanismos de terceiros (consulta externa)
+    # ------------------------------------------------------------------
+
+    async def consulta_mecanismos_terceiros(
+        self, username: str, password: str, dados: dict
+    ) -> dict:
+        try:
+            data = await self._post(username, password, "/mecanismos_terceiros/consulta", body=dados)
+            return {"ok": True, "data": data}
+        except Exception as exc:
+            logger.warning("stormfin_mecanismos_terceiros_failed", error=str(exc))
             return {"ok": False, "error": str(exc)}
 
     # ------------------------------------------------------------------

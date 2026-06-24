@@ -428,30 +428,291 @@ async def listar_status_contratos(
 # Endpoints — Simulações
 # ---------------------------------------------------------------------------
 
-@router.get("/simular/fgts")
+class SimularFGTSBody(BaseModel):
+    cpf: str
+    banco: Optional[str] = None
+    banco_id: Optional[str] = None
+    ler_cache: bool = True
+    provedor: Optional[str] = None
+
+
+class SimularCLTBody(BaseModel):
+    cpf: str
+    banco: Optional[str] = None
+    banco_id: Optional[str] = None
+    tipo_simulacao: Optional[str] = None
+    valor_solicitado: Optional[float] = None
+    valor: Optional[float] = None
+    matricula: Optional[str] = None
+
+
+@router.post("/simular/fgts")
 async def simular_fgts(
+    body: SimularFGTSBody,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-    cpf: str = Query(...),
-    banco_id: str = Query(...),
 ):
-    """Executa uma simulação FGTS no StormFin."""
+    """Executa uma simulação FGTS no StormFin (GET /simulacoes/fgts)."""
     username, password = await get_storm_creds(db)
-    result = await stormfin.simular_fgts(username, password, cpf=cpf, banco_id=banco_id)
+    banco_id = body.banco_id or body.banco or ""
+    result = await stormfin.simular_fgts(
+        username, password,
+        cpf=body.cpf,
+        banco_id=banco_id,
+        ler_cache=body.ler_cache,
+        provedor=body.provedor,
+    )
     return result
 
 
-@router.get("/simular/clt")
+@router.post("/simular/clt")
 async def simular_clt(
+    body: SimularCLTBody,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-    cpf: str = Query(...),
-    banco_id: str = Query(...),
 ):
-    """Executa uma simulação CLT no StormFin."""
+    """Executa uma simulação CLT no StormFin (GET /simulacoes/clt)."""
     username, password = await get_storm_creds(db)
-    result = await stormfin.simular_clt(username, password, cpf=cpf, banco_id=banco_id)
+    banco_id = body.banco_id or body.banco or ""
+    result = await stormfin.simular_clt(
+        username, password,
+        cpf=body.cpf,
+        banco_id=banco_id,
+        tipo_simulacao=body.tipo_simulacao,
+        valor_solicitado=body.valor_solicitado or body.valor,
+        matricula=body.matricula,
+    )
     return result
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Digitação (criação de propostas no StormFin)
+# ---------------------------------------------------------------------------
+
+@router.post("/digitacoes/fgts")
+async def digitacao_fgts(
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Cria uma proposta FGTS no StormFin (POST /digitacoes/fgts)."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.digitacao_fgts(username, password, dados=body)
+
+
+@router.post("/digitacoes/clt")
+async def digitacao_clt(
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Cria uma proposta CLT no StormFin (POST /digitacoes/clt)."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.digitacao_clt(username, password, dados=body)
+
+
+@router.get("/bancos/{banco_id}/campos-obrigatorios/fgts")
+async def campos_obrigatorios_fgts(
+    banco_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Retorna os campos obrigatórios para digitação FGTS de um banco."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.campos_obrigatorios_fgts(username, password, banco_id=banco_id)
+
+
+@router.get("/bancos/{banco_id}/campos-obrigatorios/clt")
+async def campos_obrigatorios_clt(
+    banco_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Retorna os campos obrigatórios para digitação CLT de um banco."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.campos_obrigatorios_clt(username, password, banco_id=banco_id)
+
+
+@router.post("/formalizacoes/fgts/link")
+async def link_formalizacao_fgts(
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Gera link de formalização FGTS no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.link_formalizacao_fgts(username, password, dados=body)
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Banco / Órgãos / Tabelas / Prazos
+# ---------------------------------------------------------------------------
+
+@router.get("/bancos/{banco_id}/orgaos")
+async def banco_orgaos(
+    banco_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Lista órgãos conveniados de um banco no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_banco_orgaos(username, password, banco_id=banco_id)
+
+
+@router.get("/banco-orgaos/{banco_orgao_id}/tabelas")
+async def tabelas_banco_orgao(
+    banco_orgao_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Lista tabelas disponíveis para um banco/órgão no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_tabelas(username, password, banco_orgao_id=banco_orgao_id)
+
+
+@router.get("/tabelas/{tabela_id}/prazos")
+async def prazos_tabela(
+    tabela_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Lista prazos disponíveis para uma tabela no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_prazos(username, password, tabela_id=tabela_id)
+
+
+@router.get("/paises")
+async def listar_paises(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_paises(username, password)
+
+
+@router.get("/nacionalidades")
+async def listar_nacionalidades(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_nacionalidades(username, password)
+
+
+@router.get("/tipos-origem-cliente")
+async def tipos_origem_cliente(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_tipos_origem_cliente(username, password)
+
+
+@router.get("/beneficios-especie")
+async def beneficios_especie(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_beneficios_especie(username, password)
+
+
+@router.get("/beneficios/situacoes-bloqueio")
+async def beneficios_situacoes_bloqueio(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_beneficios_situacoes_bloqueio(username, password)
+
+
+@router.get("/permissoes")
+async def listar_permissoes(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_permissoes(username, password)
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Contratos (criação / clonagem)
+# ---------------------------------------------------------------------------
+
+@router.post("/contratos")
+async def criar_contrato(
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Cria um novo contrato no StormFin (POST /contratos)."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.criar_contrato(username, password, dados=body)
+
+
+@router.post("/contratos/{ff}/clone")
+async def clonar_contrato(
+    ff: str,
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Clona um contrato existente no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.clonar_contrato(username, password, ff=ff, dados=body)
+
+
+@router.get("/contratos/{ff}/portados")
+async def contratos_portados(
+    ff: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Retorna contratos portados de um contrato no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.get_contratos_portados(username, password, ff=ff)
+
+
+@router.get("/relatorios/contratos")
+async def relatorio_contratos(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    data: str = Query(...),
+    status: Optional[str] = Query(None),
+):
+    """Relatório de contratos digitados/pagos no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.relatorio_contratos(username, password, data_str=data, status=status)
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Colaboradores
+# ---------------------------------------------------------------------------
+
+@router.post("/colaboradores/contra-senha")
+async def contra_senha_colaborador(
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Consulta contra-senha de um colaborador no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.contra_senha_colaborador(username, password, dados=body)
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Mecanismos de terceiros
+# ---------------------------------------------------------------------------
+
+@router.post("/mecanismos-terceiros/consulta")
+async def consulta_mecanismos_terceiros(
+    body: dict,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Consulta dados via mecanismos de terceiros no StormFin."""
+    username, password = await get_storm_creds(db)
+    return await stormfin.consulta_mecanismos_terceiros(username, password, dados=body)
 
 
 # ---------------------------------------------------------------------------
@@ -475,3 +736,66 @@ async def listar_esteira(
         periodo=periodo,
     )
     return result
+
+
+# ---------------------------------------------------------------------------
+# Endpoints — Sincronização (dispara tasks Celery em background)
+# ---------------------------------------------------------------------------
+
+@router.post("/sync/contratos")
+async def sync_contratos(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    pagina: int = Query(default=1, ge=1),
+):
+    """
+    Dispara sincronização de contratos do StormFin → banco local (via Celery).
+    Se Celery não estiver rodando, executa sincronamente.
+    """
+    await get_storm_creds(db)  # valida credenciais antes de enfileirar
+    try:
+        from ...workers.tasks import sync_stormfin_contratos
+        task = sync_stormfin_contratos.delay(pagina=pagina)
+        return {"ok": True, "task_id": task.id, "message": "Sincronização enfileirada"}
+    except Exception:
+        # Celery offline — executa direto
+        from ...workers.tasks import sync_stormfin_contratos
+        result = sync_stormfin_contratos(pagina=pagina)
+        return {"ok": True, "message": "Sincronização executada diretamente", **result}
+
+
+@router.post("/sync/colaboradores")
+async def sync_colaboradores(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Dispara sincronização de colaboradores do StormFin → banco local (via Celery).
+    Se Celery não estiver rodando, executa sincronamente.
+    """
+    await get_storm_creds(db)
+    try:
+        from ...workers.tasks import sync_stormfin_colaboradores
+        task = sync_stormfin_colaboradores.delay()
+        return {"ok": True, "task_id": task.id, "message": "Sincronização enfileirada"}
+    except Exception:
+        from ...workers.tasks import sync_stormfin_colaboradores
+        result = sync_stormfin_colaboradores()
+        return {"ok": True, "message": "Sincronização executada diretamente", **result}
+
+
+@router.post("/sync/antifraude/{proposal_id}")
+async def sync_antifraude_check(
+    proposal_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Dispara verificação de antifraude para uma proposta específica."""
+    try:
+        from ...workers.tasks import process_antifraud_check
+        task = process_antifraud_check.delay(proposal_id=proposal_id, analyst_id=current_user.id)
+        return {"ok": True, "task_id": task.id, "message": "Verificação de antifraude enfileirada"}
+    except Exception:
+        from ...workers.tasks import process_antifraud_check
+        result = process_antifraud_check(proposal_id=proposal_id, analyst_id=current_user.id)
+        return {"ok": True, "message": "Verificação executada diretamente", **result}

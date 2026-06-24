@@ -46,10 +46,13 @@ async def list_convenios(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     status_filter: Optional[str] = Query(None, alias="status"),
+    name: Optional[str] = Query(None),
 ):
     query = db.query(Convenio)
     if status_filter:
         query = query.filter(Convenio.status == status_filter)
+    if name:
+        query = query.filter(Convenio.name.ilike(f"%{name}%"))
     convenios = query.order_by(Convenio.name).all()
     return [convenio_to_dict(c) for c in convenios]
 
