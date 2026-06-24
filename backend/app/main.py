@@ -135,11 +135,15 @@ async def lifespan(app: FastAPI):
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
-            # Grant schema-level access so the current user can create tables
-            conn.execute(text("GRANT ALL ON SCHEMA public TO current_user"))
+            # Resolve current user name and grant schema + all tables
+            current_user = conn.execute(text("SELECT current_user")).scalar()
+            conn.execute(text(f'GRANT ALL ON SCHEMA public TO "{current_user}"'))
+            conn.execute(text(f'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "{current_user}"'))
+            conn.execute(text(f'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "{current_user}"'))
             conn.commit()
+            logger.info("startup_grants_ok", db_user=current_user)
     except Exception as e:
-        logger.warning("startup_grant_schema_failed", error=str(e))
+        logger.warning("startup_grant_failed", error=str(e))
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("startup_tables_created")
